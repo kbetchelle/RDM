@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDM Replacement - Lists</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="notebook-page">
+        <!-- Header Section -->
+        <header class="header-section">
+            <h1>Lists</h1>
+            <nav class="header-nav">
+                <div class="menu-bubble">
+                    <div class="menu-icon">⋮</div>
+                    <div class="menu-dropdown">
+                        <a href="index.html" class="menu-item">Home</a>
+                        <a href="lists.html" class="menu-item">Lists</a>
+                        <a href="thisweek.html" class="menu-item">This Week</a>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="lists-container-main">
+            <!-- Left Column: Lists Navigation -->
+            <div class="lists-sidebar-simple">
+                <div id="lists-nav" class="lists-nav">
+                    <!-- Lists will be dynamically added here -->
+                </div>
+                <button id="add-list-btn" class="add-list-btn">+</button>
+            </div>
+
+            <!-- Right Column: Tasks Display -->
+            <div class="tasks-display">
+                <div class="tasks-header">
+                    <h2 id="current-list-title">Tasks:</h2>
+                    <div>
+                        <input id="task-input"
+                        type="text"
+                        id="new-task-input"
+                        placeholder="add a task..."
+                        maxlength="200">   
+                        <div id="tasks-list" class="tasks-list-simple"></div>
+                     <!-- Tasks will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+                
+
+            </div>
+        </div>
+    </div>
+
+    <script src="lists.js"></script>
+</body>
+</html>
