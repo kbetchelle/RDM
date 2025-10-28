@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDM Replacement - Account</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="themeLoader.js"></script>
+</head>
+<body>
+    <div class="notebook-page">
+        <!-- Header Section -->
+        <header class="header-section">
+            <h1>Account</h1>
+            <nav class="header-nav">
+                <div class="menu-bubble">
+                    <div class="menu-icon">⋮</div>
+                    <div class="menu-dropdown">
+                        <a href="index.html" class="menu-item">Home</a>
+                        <a href="lists.html" class="menu-item">Lists</a>
+                        <a href="thisweek.html" class="menu-item">This Week</a>
+                        <a href="account.html" class="menu-item">Account</a>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="lists-container-main">
+            <!-- Left Column: Account Navigation -->
+            <div class="lists-sidebar-simple">
+                <div id="account-nav" class="lists-nav">
+                    <button class="list-nav-item" onclick="showDisplay()">Display</button>
+                    <button class="list-nav-item active" onclick="showArchive()">Archive</button>
+                </div>
+            </div>
+
+            <!-- Right Column: Content Display -->
+            <div class="tasks-display">
+                <div class="tasks-header">
+                    <h2 id="account-section-title">Archived Tasks</h2>
+                </div>
+
+                <!-- Display Options Section (hidden by default) -->
+                <div id="display-options" class="display-options" style="display: none;">
+                    <div class="display-header">
+                        <h3>Choose Display Theme</h3>
+                        <div class="theme-options">
+                            <button class="theme-btn active" data-theme="lined" onclick="setTheme('lined')">
+                                <span class="theme-preview lined-preview"></span>
+                                <span class="theme-name">Lined</span>
+                            </button>
+                            <button class="theme-btn" data-theme="dotted" onclick="setTheme('dotted')">
+                                <span class="theme-preview dotted-preview"></span>
+                                <span class="theme-name">Dotted</span>
+                            </button>
+                            <button class="theme-btn" data-theme="cream" onclick="setTheme('cream')">
+                                <span class="theme-preview cream-preview"></span>
+                                <span class="theme-name">Cream</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Archive Tasks List -->
+                <div id="archive-tasks-list" class="tasks-list-simple">
+                    <!-- Archived tasks will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="globalVars.js"></script>
+    <script src="account.js"></script>
+</body>
+</html>
