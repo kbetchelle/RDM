@@ -11,6 +11,20 @@ const tasksList = document.getElementById('tasks-list');
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if elements exist
+    if (!newTaskInput) {
+        console.error('Task input element not found!');
+        return;
+    }
+    if (!tasksList) {
+        console.error('Tasks list element not found!');
+        return;
+    }
+    if (!listsNav) {
+        console.error('Lists nav element not found!');
+        return;
+    }
+
     loadData();
     renderListsNav();
     renderTasks();
@@ -30,6 +44,10 @@ function loadData() {
     if (savedLists) {
         try {
             lists = JSON.parse(savedLists);
+            // Normalize tasks to ensure all have required fields
+            lists.forEach(list => {
+                list.tasks = list.tasks.map(task => normalizeTask(task));
+            });
         } catch (e) {
             console.error('Error loading lists:', e);
             lists = [];
@@ -40,6 +58,23 @@ function loadData() {
     if (lists.length === 0) {
         initializeSampleData();
     }
+}
+
+// Ensure all tasks have required fields (backward compatibility)
+function normalizeTask(task) {
+    return {
+        id: task.id,
+        text: task.text,
+        completed: task.completed !== undefined ? task.completed : false,
+        createdDate: task.createdDate || new Date().toISOString(),
+        dueDate: task.dueDate || null,
+        tags: task.tags || [],
+        project: task.project || null,
+        category: task.category || null,
+        movedToBottom: task.movedToBottom || false,
+        movedToBottomTime: task.movedToBottomTime || null,
+        assignedListId: task.assignedListId || null
+    };
 }
 
 function saveData() {
@@ -53,16 +88,16 @@ function initializeSampleData() {
             id: generateId(),
             name: "Work",
             tasks: [
-                { id: generateId(), text: "Complete project documentation", completed: false, createdDate: now, dueDate: null },
-                { id: generateId() + 1, text: "Review team code submissions", completed: false, createdDate: now, dueDate: null }
+                { id: generateId(), text: "Complete project documentation", completed: false, createdDate: now, dueDate: null, tags: [], project: null, category: null },
+                { id: generateId() + 1, text: "Review team code submissions", completed: false, createdDate: now, dueDate: null, tags: [], project: null, category: null }
             ]
         },
         {
             id: generateId() + 2,
             name: "Personal",
             tasks: [
-                { id: generateId() + 3, text: "Buy groceries", completed: false, createdDate: now, dueDate: null },
-                { id: generateId() + 4, text: "Call dentist", completed: true, createdDate: now, dueDate: null }
+                { id: generateId() + 3, text: "Buy groceries", completed: false, createdDate: now, dueDate: null, tags: [], project: null, category: null },
+                { id: generateId() + 4, text: "Call dentist", completed: true, createdDate: now, dueDate: null, tags: [], project: null, category: null }
             ]
         }
     ];
@@ -142,6 +177,7 @@ function renderListsNav() {
         const listItem = document.createElement('button');
         listItem.className = 'list-nav-item';
         listItem.textContent = list.name;
+        listItem.setAttribute('data-drop-list-id', list.id);
 
         if (currentListId === list.id) {
             listItem.classList.add('active');
@@ -155,15 +191,86 @@ function renderListsNav() {
             deleteList(list.id);
         };
 
+        // Make list item a drop zone
+        listItem.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            listItem.classList.add('drag-over');
+        });
+
+        listItem.addEventListener('dragleave', () => {
+            listItem.classList.remove('drag-over');
+        });
+
+        listItem.addEventListener('drop', (e) => {
+            e.preventDefault();
+            listItem.classList.remove('drag-over');
+
+            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const { taskId, listId: sourceListId } = data;
+
+            console.log('Dropping task', taskId, 'from list', sourceListId, 'to list', list.id);
+
+            // Move task from source list to target list
+            moveTaskToList(taskId, sourceListId, list.id);
+        });
+
         listsNav.appendChild(listItem);
     });
 }
 
+// Move task from one list to another
+function moveTaskToList(taskId, sourceListId, targetListId) {
+    // Find source list
+    const sourceList = lists.find(l => l.id === sourceListId);
+    if (!sourceList) {
+        console.error('Source list not found');
+        return;
+    }
+
+    // Find task in source list
+    const taskIndex = sourceList.tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) {
+        console.error('Task not found in source list');
+        return;
+    }
+
+    // Find target list
+    const targetList = lists.find(l => l.id === targetListId);
+    if (!targetList) {
+        console.error('Target list not found');
+        return;
+    }
+
+    // Remove task from source list
+    const task = sourceList.tasks.splice(taskIndex, 1)[0];
+
+    // Update task's assignedListId
+    task.assignedListId = targetListId;
+
+    // Add task to target list
+    targetList.tasks.unshift(task);
+
+    console.log('Moved task:', task.text, 'to list:', targetList.name);
+
+    // Save and re-render
+    saveData();
+    renderTasks();
+}
+
 // ===== TASK MANAGEMENT =====
 function addTask() {
-    const text = newTaskInput.value.trim();
+    console.log('addTask called');
+    console.log('newTaskInput:', newTaskInput);
+    console.log('newTaskInput.value:', newTaskInput.value);
 
-    if (!text) return;
+    const text = newTaskInput.value.trim();
+    console.log('Trimmed text:', text);
+
+    if (!text) {
+        console.log('No text entered, returning');
+        return;
+    }
 
     if (currentListId === 'all') {
         // If viewing "All Tasks", add to first list or create a new one
@@ -180,10 +287,14 @@ function addTask() {
             text: text,
             completed: false,
             createdDate: new Date().toISOString(),
-            dueDate: null
+            dueDate: null,
+            tags: [],
+            project: null,
+            category: null,
+            assignedListId: lists[0].id
         };
 
-        lists[0].tasks.push(newTask);
+        lists[0].tasks.unshift(newTask); // Add to beginning of array
     } else {
         // Add to specific list
         const list = lists.find(l => l.id === currentListId);
@@ -193,17 +304,25 @@ function addTask() {
                 text: text,
                 completed: false,
                 createdDate: new Date().toISOString(),
-                dueDate: null
+                dueDate: null,
+                tags: [],
+                project: null,
+                category: null,
+                assignedListId: list.id
             };
 
-            list.tasks.push(newTask);
+            list.tasks.unshift(newTask); // Add to beginning of array
         }
     }
 
+    console.log('Saving data...');
     saveData();
+    console.log('Rendering tasks...');
     renderTasks();
+    console.log('Clearing input...');
     newTaskInput.value = '';
     newTaskInput.focus();
+    console.log('Task added successfully!');
 }
 
 function toggleTask(listId, taskId) {
@@ -213,9 +332,88 @@ function toggleTask(listId, taskId) {
     const task = list.tasks.find(t => t.id === taskId);
     if (!task) return;
 
+    // Toggle completion status
     task.completed = !task.completed;
+    console.log('Task toggled:', task.text, 'Completed:', task.completed);
+
+    // Mark as not moved when toggling
+    if (task.completed) {
+        task.movedToBottom = false;
+        console.log('Task marked completed, will move to bottom in 10 seconds');
+    } else {
+        delete task.movedToBottom;
+        console.log('Task unmarked as completed');
+    }
+
     saveData();
     renderTasks();
+
+    // If task was just completed, move to end after 10 seconds
+    if (task.completed) {
+        setTimeout(() => {
+            console.log('10 seconds passed, checking if task should move...');
+            // Find the task again (in case list changed)
+            const currentList = lists.find(l => l.id === listId);
+            if (!currentList) {
+                console.log('List not found');
+                return;
+            }
+
+            const taskIndex = currentList.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex === -1) {
+                console.log('Task not found in list');
+                return;
+            }
+
+            const taskToMove = currentList.tasks[taskIndex];
+
+            // Only move if still completed and not already moved
+            if (taskToMove.completed && !taskToMove.movedToBottom) {
+                console.log('Moving task to bottom:', taskToMove.text);
+                // Mark as moved to bottom (for blur styling)
+                taskToMove.movedToBottom = true;
+                // Set timestamp for deletion
+                taskToMove.movedToBottomTime = Date.now();
+
+                // Remove from current position
+                currentList.tasks.splice(taskIndex, 1);
+
+                // Add to end
+                currentList.tasks.push(taskToMove);
+
+                saveData();
+                renderTasks();
+                console.log('Task moved to bottom and re-rendered');
+
+                // Schedule deletion after 6 hours
+                scheduleTaskDeletion(listId, taskId);
+            } else {
+                console.log('Task not moved - completed:', taskToMove.completed, 'movedToBottom:', taskToMove.movedToBottom);
+            }
+        }, 10000); // 10 seconds = 10000 milliseconds
+    }
+}
+
+// Schedule task deletion after 6 hours
+function scheduleTaskDeletion(listId, taskId) {
+    setTimeout(() => {
+        console.log('6 hours passed, deleting task...');
+        const currentList = lists.find(l => l.id === listId);
+        if (!currentList) return;
+
+        const taskIndex = currentList.tasks.findIndex(t => t.id === taskId);
+        if (taskIndex === -1) return;
+
+        const task = currentList.tasks[taskIndex];
+
+        // Only delete if still completed and moved to bottom
+        if (task.completed && task.movedToBottom) {
+            console.log('Deleting task:', task.text);
+            currentList.tasks.splice(taskIndex, 1);
+            saveData();
+            renderTasks();
+        }
+    }, 6 * 60 * 60 * 1000); // 6 hours = 21600000 milliseconds
 }
 
 function renderTasks() {
@@ -224,16 +422,14 @@ function renderTasks() {
     let allTasks = [];
 
     if (currentListId === 'all') {
-        // Gather all tasks from all lists
+        // Gather all tasks from all lists (including completed)
         lists.forEach(list => {
             list.tasks.forEach(task => {
-                if (!task.completed) { // Only show active tasks in "All Tasks"
-                    allTasks.push({ task, listId: list.id });
-                }
+                allTasks.push({ task, listId: list.id });
             });
         });
     } else {
-        // Get tasks from specific list
+        // Get tasks from specific list (including completed)
         const list = lists.find(l => l.id === currentListId);
         if (list) {
             list.tasks.forEach(task => {
@@ -255,70 +451,242 @@ function createTaskElement(task, listId) {
 
     if (task.completed) {
         div.classList.add('completed');
+        console.log('Rendering completed task:', task.text, 'movedToBottom:', task.movedToBottom);
+        // Add moved-to-bottom class if task has been moved
+        if (task.movedToBottom) {
+            div.classList.add('moved-to-bottom');
+            console.log('Added moved-to-bottom class');
+        }
     }
 
-    // Checkbox
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.className = 'task-checkbox';
-    checkbox.checked = task.completed;
-    checkbox.onchange = () => toggleTask(listId, task.id);
+    // Bullet point (clickable)
+    const bullet = document.createElement('span');
+    bullet.className = 'task-bullet';
+    bullet.onclick = () => toggleTask(listId, task.id);
+
+    // Make task draggable (only if not completed)
+    if (!task.completed) {
+        div.draggable = true;
+        div.setAttribute('data-task-id', task.id);
+        div.setAttribute('data-list-id', listId);
+
+        div.addEventListener('dragstart', (e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', JSON.stringify({ taskId: task.id, listId: listId }));
+            div.classList.add('dragging');
+            console.log('Drag started for task:', task.text);
+        });
+
+        div.addEventListener('dragend', () => {
+            div.classList.remove('dragging');
+            console.log('Drag ended');
+        });
+    }
 
     // Task text
     const textSpan = document.createElement('span');
     textSpan.className = 'task-text-simple';
     textSpan.textContent = task.text;
+    textSpan.setAttribute('data-original-text', task.text);
 
-    // Task menu button
-    const menuContainer = document.createElement('div');
-    menuContainer.className = 'task-menu-container';
-
-    const menuBtn = document.createElement('button');
-    menuBtn.className = 'task-menu-btn';
-    menuBtn.textContent = '⋮';
-
-    const menuDropdown = document.createElement('div');
-    menuDropdown.className = 'task-menu-dropdown';
-
-    const editBtn = document.createElement('button');
-    editBtn.className = 'task-menu-item';
-    editBtn.textContent = 'Edit';
-    editBtn.onclick = (e) => {
+    // Single click to toggle completion (strike through)
+    textSpan.addEventListener('click', (e) => {
         e.stopPropagation();
-        openEditModal(task, listId);
+        toggleTask(listId, task.id);
+    });
+
+    // Double click to make editable inline
+    textSpan.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        makeTaskEditable(textSpan, task, listId);
+    });
+
+    // Right arrow button to open details popup
+    const arrowBtn = document.createElement('button');
+    arrowBtn.className = 'task-arrow-btn';
+    arrowBtn.textContent = '→';
+    arrowBtn.onclick = (e) => {
+        e.stopPropagation();
+        openTaskDetailsPopup(task, listId, div);
     };
 
-    const archiveBtn = document.createElement('button');
-    archiveBtn.className = 'task-menu-item';
-    archiveBtn.textContent = 'Archive';
-    archiveBtn.onclick = (e) => {
-        e.stopPropagation();
-        archiveTask(listId, task.id);
-    };
-
-    const abyssBtn = document.createElement('button');
-    abyssBtn.className = 'task-menu-item';
-    abyssBtn.textContent = 'Abyss';
-    abyssBtn.onclick = (e) => {
-        e.stopPropagation();
-        sendToAbyss(listId, task.id);
-    };
-
-    menuDropdown.appendChild(editBtn);
-    menuDropdown.appendChild(archiveBtn);
-    menuDropdown.appendChild(abyssBtn);
-
-    menuContainer.appendChild(menuBtn);
-    menuContainer.appendChild(menuDropdown);
-
-    div.appendChild(checkbox);
+    div.appendChild(bullet);
     div.appendChild(textSpan);
-    div.appendChild(menuContainer);
+    div.appendChild(arrowBtn);
 
     return div;
 }
 
 // ===== TASK ACTIONS =====
+// Make task text editable inline
+function makeTaskEditable(textSpan, task, listId) {
+    const originalText = textSpan.textContent;
+
+    // Create input element
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = originalText;
+    input.className = 'task-text-edit-input';
+    input.style.width = '100%';
+    input.style.font = 'inherit';
+    input.style.border = 'none';
+    input.style.background = 'transparent';
+    input.style.outline = 'none';
+    input.style.padding = '0';
+
+    // Replace span with input
+    textSpan.textContent = '';
+    textSpan.appendChild(input);
+    input.focus();
+    input.select();
+
+    // Save on Enter
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const newText = input.value.trim();
+            if (newText && newText !== originalText) {
+                task.text = newText;
+                saveData();
+            }
+            textSpan.textContent = task.text;
+            textSpan.setAttribute('data-original-text', task.text);
+        } else if (e.key === 'Escape') {
+            // Cancel on Escape
+            textSpan.textContent = originalText;
+        }
+    });
+
+    // Save on blur (clicking outside)
+    input.addEventListener('blur', () => {
+        const newText = input.value.trim();
+        if (newText && newText !== originalText) {
+            task.text = newText;
+            saveData();
+        }
+        textSpan.textContent = task.text;
+        textSpan.setAttribute('data-original-text', task.text);
+    });
+}
+
+// Open task details popup
+function openTaskDetailsPopup(task, listId, taskElement) {
+    // Remove any existing popup
+    const existingPopup = document.querySelector('.task-details-popup');
+    if (existingPopup) {
+        existingPopup.remove();
+    }
+
+    // Create popup overlay
+    const popup = document.createElement('div');
+    popup.className = 'task-details-popup';
+
+    // Create popup content
+    const popupContent = document.createElement('div');
+    popupContent.className = 'task-details-content';
+
+    // Close button (X)
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'task-details-close';
+    closeBtn.textContent = '×';
+    closeBtn.onclick = () => {
+        popup.classList.remove('active');
+        setTimeout(() => popup.remove(), 300);
+    };
+
+    // Title
+    const title = document.createElement('h3');
+    title.textContent = 'Task Details';
+    title.style.marginBottom = '20px';
+
+    // Task name field
+    const nameLabel = document.createElement('label');
+    nameLabel.className = 'task-detail-label';
+    nameLabel.textContent = 'Task Name:';
+    const nameInput = document.createElement('input');
+    nameInput.className = 'task-detail-input';
+    nameInput.type = 'text';
+    nameInput.value = task.text;
+
+    // Tags field
+    const tagsLabel = document.createElement('label');
+    tagsLabel.className = 'task-detail-label';
+    tagsLabel.textContent = 'Tags (comma-separated):';
+    const tagsInput = document.createElement('input');
+    tagsInput.className = 'task-detail-input';
+    tagsInput.type = 'text';
+    tagsInput.value = task.tags ? task.tags.join(', ') : '';
+
+    // Project field
+    const projectLabel = document.createElement('label');
+    projectLabel.className = 'task-detail-label';
+    projectLabel.textContent = 'Project:';
+    const projectInput = document.createElement('input');
+    projectInput.className = 'task-detail-input';
+    projectInput.type = 'text';
+    projectInput.value = task.project || '';
+
+    // Category field
+    const categoryLabel = document.createElement('label');
+    categoryLabel.className = 'task-detail-label';
+    categoryLabel.textContent = 'Category:';
+    const categoryInput = document.createElement('input');
+    categoryInput.className = 'task-detail-input';
+    categoryInput.type = 'text';
+    categoryInput.value = task.category || '';
+
+    // Due date field
+    const dueDateLabel = document.createElement('label');
+    dueDateLabel.className = 'task-detail-label';
+    dueDateLabel.textContent = 'Due Date:';
+    const dueDateInput = document.createElement('input');
+    dueDateInput.className = 'task-detail-input';
+    dueDateInput.type = 'date';
+    if (task.dueDate) {
+        dueDateInput.value = task.dueDate.split('T')[0];
+    }
+
+    // Save button (right arrow)
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'task-details-save';
+    saveBtn.textContent = '→';
+    saveBtn.onclick = () => {
+        // Save all changes
+        task.text = nameInput.value.trim();
+        task.tags = tagsInput.value.split(',').map(t => t.trim()).filter(t => t);
+        task.project = projectInput.value.trim() || null;
+        task.category = categoryInput.value.trim() || null;
+        task.dueDate = dueDateInput.value ? new Date(dueDateInput.value).toISOString() : null;
+
+        saveData();
+        renderTasks();
+
+        popup.classList.remove('active');
+        setTimeout(() => popup.remove(), 300);
+    };
+
+    // Assemble popup
+    popupContent.appendChild(closeBtn);
+    popupContent.appendChild(title);
+    popupContent.appendChild(nameLabel);
+    popupContent.appendChild(nameInput);
+    popupContent.appendChild(tagsLabel);
+    popupContent.appendChild(tagsInput);
+    popupContent.appendChild(projectLabel);
+    popupContent.appendChild(projectInput);
+    popupContent.appendChild(categoryLabel);
+    popupContent.appendChild(categoryInput);
+    popupContent.appendChild(dueDateLabel);
+    popupContent.appendChild(dueDateInput);
+    popupContent.appendChild(saveBtn);
+
+    popup.appendChild(popupContent);
+    document.body.appendChild(popup);
+
+    // Trigger animation
+    setTimeout(() => popup.classList.add('active'), 10);
+}
+
 function openEditModal(task, listId) {
     // Create modal overlay
     const modal = document.createElement('div');
@@ -450,11 +818,26 @@ function sendToAbyss(listId, taskId) {
 // ===== EVENT LISTENERS =====
 addListBtn.addEventListener('click', addList);
 
-newTaskInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        addTask();
-    }
-});
+// Add event listener only if element exists
+if (newTaskInput) {
+    console.log('Event listener attached to newTaskInput');
+
+    newTaskInput.addEventListener('keypress', (e) => {
+        console.log('Key pressed:', e.key);
+        if (e.key === 'Enter') {
+            console.log('Enter key detected, calling addTask');
+            e.preventDefault();
+            addTask();
+        }
+    });
+
+    // Also add blur event to test
+    newTaskInput.addEventListener('focus', () => {
+        console.log('Input focused!');
+    });
+} else {
+    console.error('newTaskInput element not found when setting up event listeners!');
+}
 
 // Export function for navigation
 window.navigateToPage = navigateToPage;

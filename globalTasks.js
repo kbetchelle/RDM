@@ -155,6 +155,32 @@ const GlobalTasks = {
         }
 
         return null;
+    },
+
+    // Toggle task completion - global function
+    toggleTaskCompletion(listId, taskId) {
+        const lists = this.getLists();
+        const list = lists.find(l => l.id === listId);
+
+        if (!list) return null;
+
+        const task = list.tasks.find(t => t.id === taskId);
+
+        if (!task) return null;
+
+        // Toggle completed status
+        task.completed = !task.completed;
+
+        // Save to localStorage
+        localStorage.setItem('rdm_lists_simple', JSON.stringify(lists));
+
+        // Trigger storage event for other pages/windows
+        window.dispatchEvent(new StorageEvent('storage', {
+            key: 'rdm_lists_simple',
+            newValue: JSON.stringify(lists)
+        }));
+
+        return task.completed;
     }
 };
 

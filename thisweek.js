@@ -47,12 +47,10 @@ function createTaskElement(task) {
         div.classList.add('completed');
     }
 
-    // Checkbox
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.className = 'task-checkbox';
-    checkbox.checked = task.completed;
-    checkbox.onchange = () => toggleTask(task.listId, task.id);
+    // Bullet point (clickable)
+    const bullet = document.createElement('span');
+    bullet.className = 'task-bullet';
+    bullet.onclick = () => toggleTask(task.listId, task.id);
 
     // Task text container
     const textContainer = document.createElement('div');
@@ -61,6 +59,12 @@ function createTaskElement(task) {
     const textSpan = document.createElement('span');
     textSpan.className = 'task-text-simple';
     textSpan.textContent = task.text;
+
+    // Add double-click to toggle completion
+    textSpan.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        toggleTask(task.listId, task.id);
+    });
 
     // Meta info (list name, created date, due date)
     const metaSpan = document.createElement('span');
@@ -113,7 +117,7 @@ function createTaskElement(task) {
     menuContainer.appendChild(menuBtn);
     menuContainer.appendChild(menuDropdown);
 
-    div.appendChild(checkbox);
+    div.appendChild(bullet);
     div.appendChild(textContainer);
     div.appendChild(menuContainer);
 

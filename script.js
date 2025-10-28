@@ -240,7 +240,7 @@ function loadListsDropdown() {
 }
 
 function getLists() {
-    const savedLists = localStorage.getItem('rdm_lists');
+    const savedLists = localStorage.getItem('rdm_lists_simple');
     if (savedLists) {
         try {
             return JSON.parse(savedLists);
@@ -312,7 +312,7 @@ function getRandomTask() {
             if (list.tasks) {
                 const listTasks = list.tasks.filter(task =>
                     !task.completed && !isTaskBlocked(task, list.tasks)
-                );
+                ).map(task => ({ ...task, listId: list.id }));
                 availableTasks.push(...listTasks);
             }
         });
@@ -322,7 +322,7 @@ function getRandomTask() {
         if (list && list.tasks) {
             availableTasks = list.tasks.filter(task =>
                 !task.completed && !isTaskBlocked(task, list.tasks)
-            );
+            ).map(task => ({ ...task, listId: list.id }));
         }
     }
 
@@ -340,9 +340,13 @@ function getRandomTask() {
         // Update display
         selectedTextDisplay.textContent = selectedTask.text;
 
+        // Remove strikethrough if it was previously completed
+        selectedTextDisplay.style.textDecoration = 'none';
+
         // Save to localStorage
         localStorage.setItem('selectedText', selectedTask.text);
         localStorage.setItem('selectedTaskId', selectedTask.id.toString());
+        localStorage.setItem('selectedTaskListId', selectedTask.listId.toString());
     }
 }
 
@@ -379,3 +383,43 @@ function weightedRandomSelect(tasks) {
 
 // Random task button
 randomTaskBtn.addEventListener('click', getRandomTask);
+
+// ===== GLOBAL DOUBLE-CLICK TO COMPLETE TASK =====
+selectedTextDisplay.addEventListener('dblclick', () => {
+    const taskId = localStorage.getItem('selectedTaskId');
+    const listId = localStorage.getItem('selectedTaskListId');
+
+    if (!taskId || !listId) {
+        return; // No task selected
+    }
+
+    const lists = getLists();
+    const list = lists.find(l => l.id === parseInt(listId));
+
+    if (!list) return;
+
+    const task = list.tasks.find(t => t.id === parseInt(taskId));
+
+    if (!task) return;
+
+    // Toggle completed status
+    task.completed = !task.completed;
+
+    // Update visual state
+    if (task.completed) {
+        selectedTextDisplay.style.textDecoration = 'line-through';
+        selectedTextDisplay.style.opacity = '0.6';
+    } else {
+        selectedTextDisplay.style.textDecoration = 'none';
+        selectedTextDisplay.style.opacity = '1';
+    }
+
+    // Save to localStorage
+    localStorage.setItem('rdm_lists_simple', JSON.stringify(lists));
+
+    // Trigger storage event for other pages/windows
+    window.dispatchEvent(new StorageEvent('storage', {
+        key: 'rdm_lists_simple',
+        newValue: JSON.stringify(lists)
+    }));
+});
