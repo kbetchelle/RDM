@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Theme Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .test-box { 
+            width: 200px; 
+            height: 200px; 
+            margin: 20px;
+            border: 2px solid black;
+        }
+    </style>
+</head>
+<body>
+    <h2>Theme Test Page</h2>
+    <button onclick="testTheme('lined')">Test Lined</button>
+    <button onclick="testTheme('dotted')">Test Dotted</button>
+    <button onclick="testTheme('cream')">Test Cream</button>
+    
+    <div class="test-box" id="testBox"></div>
+    
+    <p>Current theme: <span id="currentTheme">none</span></p>
+    <p>LocalStorage: <span id="lsValue">none</span></p>
+    
+    <script>
+        function testTheme(themeName) {
+            console.log('Testing theme:', themeName);
+            localStorage.setItem('rdm_theme', themeName);
+            document.body.setAttribute('data-theme', themeName);
+            document.getElementById('currentTheme').textContent = themeName;
+            document.getElementById('lsValue').textContent = localStorage.getItem('rdm_theme');
+        }
+        
+        // Show current state on load
+        window.onload = function() {
+            const current = localStorage.getItem('rdm_theme');
+            if (current) {
+                document.getElementById('currentTheme').textContent = current;
+                document.getElementById('lsValue').textContent = current;
+                document.body.setAttribute('data-theme', current);
+            }
+        };
+    </script>
+</body>
+</html>

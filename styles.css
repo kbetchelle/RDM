@@ -20,14 +20,6 @@ button {
 .notebook-page {
     max-width: 1200px;
     margin: 0 auto;
-    background-color: #fff;
-    background-image:
-        repeating-linear-gradient(
-            transparent,
-            transparent 31px,
-            #ccc 31px,
-            #ccc 32px
-        );
     box-shadow:
         0 0 0 1px #dedede,
         0 4px 20px rgba(0, 0, 0, 0.25),
@@ -36,6 +28,15 @@ button {
     position: relative;
     padding: 0;
     border-radius: 3px;
+    /* Default theme (Lined) - will be overridden by data-theme */
+    background-color: #fff;
+    background-image:
+        repeating-linear-gradient(
+            transparent,
+            transparent 31px,
+            #ccc 31px,
+            #ccc 32px
+        );
 }
 
 /* Red margin line */
@@ -174,6 +175,12 @@ button {
 
 .menu-item:hover {
     background-color: #f0f0f0;
+}
+
+.menu-item-button {
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
 }
 
 /* Main Content Area */
@@ -573,7 +580,7 @@ button {
     gap: 15px;
     padding: 0 10px;
     transition: all 0.2s ease;
-    height: 29px;
+    height: 31.5px;
     margin-top: 2px;
     overflow-x: auto;
     overflow-y: hidden;
@@ -626,6 +633,8 @@ button {
     text-decoration: line-through;
     text-decoration-thickness: 2px;
     text-decoration-color: currentColor;
+    opacity: 0.4;
+    filter: blur(0.5px);
 }
 
 /* Tasks that have been moved to bottom (after 10 seconds) */
@@ -758,6 +767,52 @@ button {
 
 .task-details-save:active {
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Edit Lists Popup */
+.edit-lists-popup {
+    position: fixed;
+    top: 0;
+    right: -45%;
+    width: 45%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.3);
+    z-index: 2000;
+    transition: right 0.3s ease;
+}
+
+.edit-lists-popup.active {
+    right: 0;
+}
+
+.edit-lists-content {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #fff;
+    padding: 30px;
+    overflow-y: auto;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
+    font-family: 'Courier New', Courier, monospace;
+    background-image:
+        repeating-linear-gradient(
+            transparent,
+            transparent 31px,
+            #ccc 31px,
+            #ccc 32px
+        );
+}
+
+.edit-lists-container {
+    margin-bottom: 20px;
+}
+
+.edit-list-item {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px dotted #ccc;
 }
 
 /* Edit Modal */
@@ -984,7 +1039,7 @@ button {
     .list-details {
         order: 1;
     }
-
+}
 
 @media (max-width: 600px) {
     .notebook-page::before {
@@ -1049,5 +1104,249 @@ button {
         padding-top: 37px;
         padding-left: -5px;
     }
+} /* End @media (max-width: 768px) */
+
+/* ===== DISPLAY THEMES ===== */
+
+/* Display Options Styling */
+.display-options {
+    padding: 20px;
+    font-family: 'Courier New', Courier, monospace;
 }
+
+.display-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.display-options h3 {
+    font-size: 18px;
+    margin: 0;
+    color: #2c2c2c;
+    flex-shrink: 0;
+}
+
+.account-option-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.theme-options {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+.theme-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 90px;
+}
+
+.theme-btn:hover {
+    border-color: #2c2c2c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.theme-btn.active {
+    border-color: #2c2c2c;
+    background-color: #f0f0f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.theme-preview {
+    width: 60px;
+    height: 60px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.lined-preview {
+    background-color: #fff;
+    background-image: repeating-linear-gradient(
+        transparent,
+        transparent 15px,
+        #ccc 15px,
+        #ccc 16px
+    );
+}
+
+.dotted-preview {
+    background-color: #fff;
+    background-image:
+        radial-gradient(circle, #2c2c2c 1px, transparent 1px);
+    background-size: 15px 15px;
+}
+
+.cream-preview {
+    background-color: #f5f5dc;
+    position: relative;
+}
+
+.cream-preview::after {
+    content: 'Aa';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #4169e1;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.theme-name {
+    font-size: 12px;
+    font-weight: bold;
+    color: #2c2c2c;
+}
+
+/* ===== THEME: LINED (Default) ===== */
+body[data-theme="lined"] .notebook-page {
+    background-color: #fff !important;
+    background-image:
+        repeating-linear-gradient(
+            transparent,
+            transparent 31px,
+            #ccc 31px,
+            #ccc 32px
+        ) !important;
+}
+
+body[data-theme="lined"] .notebook-page::before {
+    background-color: #ffaa9f !important;
+    box-shadow: 1px 0 0 #ffaa9f !important;
+}
+
+body[data-theme="lined"] .header-section {
+    background-color: #fff !important;
+}
+
+body[data-theme="lined"] .header-section::before {
+    background-color: #ffaa9f !important;
+}
+
+/* ===== THEME: DOTTED ===== */
+body[data-theme="dotted"] .notebook-page {
+    background-color: #fff !important;
+    background-image:
+        radial-gradient(circle, #2c2c2c 1px, transparent 1px) !important;
+    background-size: 31px 31px !important;
+    background-position: 0 0 !important;
+}
+
+
+body[data-theme="dotted"] .notebook-page::before {
+    background-color: #ffaa9f !important;
+    box-shadow: 1px 0 0 #ffaa9f !important;
+}
+
+body[data-theme="dotted"] .header-section {
+    background-color: #fff !important;
+    background-image:
+        radial-gradient(circle, #2c2c2c 1px, transparent 1px) !important;
+    background-size: 31px 31px !important;
+    background-position: 0 0 !important;
+}
+
+body[data-theme="dotted"] .header-section::before {
+    background-color: #ffaa9f !important;
+}
+
+/* ===== THEME: CREAM ===== */
+body[data-theme="cream"] {
+    background-color: #e8e4d8 !important;
+}
+
+body[data-theme="cream"] .notebook-page {
+    background-color: #f5f5dc !important;
+    background-image: none !important;
+}
+
+body[data-theme="cream"] .notebook-page::before {
+    background-color: #d4af37 !important;
+    box-shadow: 1px 0 0 #d4af37 !important;
+}
+
+body[data-theme="cream"] .header-section {
+    background-color: #f5f5dc !important;
+}
+
+body[data-theme="cream"] .header-section::before {
+    background-color: #d4af37 !important;
+}
+
+/* Cream theme text colors */
+body[data-theme="cream"] .header-section h1,
+body[data-theme="cream"] .menu-item,
+body[data-theme="cream"] .list-nav-item,
+body[data-theme="cream"] .task-text-simple,
+body[data-theme="cream"] .tasks-header h2,
+body[data-theme="cream"] .tasks-header input,
+body[data-theme="cream"] .display-options h3,
+body[data-theme="cream"] .theme-name,
+body[data-theme="cream"] button,
+body[data-theme="cream"] input,
+body[data-theme="cream"] label,
+body[data-theme="cream"] p,
+body[data-theme="cream"] span {
+    color: #4169e1;
+}
+
+body[data-theme="cream"] .task-bullet {
+    background-color: #4169e1;
+}
+
+body[data-theme="cream"] .menu-dropdown {
+    background-color: #f5f5dc;
+    border-color: #4169e1;
+}
+
+body[data-theme="cream"] .list-nav-item.active,
+body[data-theme="cream"] .list-nav-item:hover {
+    background-color: rgba(65, 105, 225, 0.1);
+    color: #4169e1;
+}
+
+body[data-theme="cream"] .tasks-header input {
+    border-bottom: 1px solid #4169e1;
+    color: #4169e1;
+}
+
+body[data-theme="cream"] .tasks-header input::placeholder {
+    color: rgba(65, 105, 225, 0.5);
+}
+
+body[data-theme="cream"] .task-arrow-btn {
+    color: #4169e1;
+}
+
+body[data-theme="cream"] .add-list-btn {
+    color: #4169e1;
+    border: 2px solid #4169e1;
+}
+
+body[data-theme="cream"] .theme-btn {
+    background-color: #f5f5dc;
+    border-color: #4169e1;
+}
+
+body[data-theme="cream"] .theme-btn.active {
+    background-color: rgba(65, 105, 225, 0.1);
+    border-color: #4169e1;
 }

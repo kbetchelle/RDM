@@ -73,7 +73,8 @@ function normalizeTask(task) {
         category: task.category || null,
         movedToBottom: task.movedToBottom || false,
         movedToBottomTime: task.movedToBottomTime || null,
-        assignedListId: task.assignedListId || null
+        assignedListId: task.assignedListId || null,
+        completedTime: task.completedTime || null
     };
 }
 
@@ -82,23 +83,11 @@ function saveData() {
 }
 
 function initializeSampleData() {
-    const now = new Date().toISOString();
     lists = [
         {
             id: generateId(),
-            name: "Work",
-            tasks: [
-                { id: generateId(), text: "Complete project documentation", completed: false, createdDate: now, dueDate: null, tags: [], project: null, category: null },
-                { id: generateId() + 1, text: "Review team code submissions", completed: false, createdDate: now, dueDate: null, tags: [], project: null, category: null }
-            ]
-        },
-        {
-            id: generateId() + 2,
-            name: "Personal",
-            tasks: [
-                { id: generateId() + 3, text: "Buy groceries", completed: false, createdDate: now, dueDate: null, tags: [], project: null, category: null },
-                { id: generateId() + 4, text: "Call dentist", completed: true, createdDate: now, dueDate: null, tags: [], project: null, category: null }
-            ]
+            name: "Tasks",
+            tasks: []
         }
     ];
     saveData();
@@ -329,91 +318,77 @@ function toggleTask(listId, taskId) {
     const list = lists.find(l => l.id === listId);
     if (!list) return;
 
-    const task = list.tasks.find(t => t.id === taskId);
-    if (!task) return;
+    const taskIndex = list.tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
+
+    const task = list.tasks[taskIndex];
 
     // Toggle completion status
     task.completed = !task.completed;
     console.log('Task toggled:', task.text, 'Completed:', task.completed);
 
-    // Mark as not moved when toggling
+    // If task was just completed, schedule archive after 6 hours
     if (task.completed) {
-        task.movedToBottom = false;
-        console.log('Task marked completed, will move to bottom in 10 seconds');
+        console.log('Task completed, will archive in 6 hours');
+        task.completedTime = Date.now();
+
+        // Schedule archive after 6 hours
+        setTimeout(() => {
+            const currentList = lists.find(l => l.id === listId);
+            if (!currentList) return;
+
+            const currentTaskIndex = currentList.tasks.findIndex(t => t.id === taskId);
+            if (currentTaskIndex === -1) return;
+
+            const taskToArchive = currentList.tasks[currentTaskIndex];
+
+            // Only archive if still completed
+            if (taskToArchive.completed) {
+                console.log('6 hours passed, moving task to archive:', taskToArchive.text);
+
+                // Remove from current list
+                currentList.tasks.splice(currentTaskIndex, 1);
+
+                // Move to archive
+                moveTaskToArchive(taskToArchive, currentList.name);
+
+                saveData();
+                renderTasks();
+            }
+        }, 6 * 60 * 60 * 1000); // 6 hours
     } else {
-        delete task.movedToBottom;
+        // If unmarking as completed, clear the completion time
+        delete task.completedTime;
         console.log('Task unmarked as completed');
     }
 
     saveData();
     renderTasks();
-
-    // If task was just completed, move to end after 10 seconds
-    if (task.completed) {
-        setTimeout(() => {
-            console.log('10 seconds passed, checking if task should move...');
-            // Find the task again (in case list changed)
-            const currentList = lists.find(l => l.id === listId);
-            if (!currentList) {
-                console.log('List not found');
-                return;
-            }
-
-            const taskIndex = currentList.tasks.findIndex(t => t.id === taskId);
-            if (taskIndex === -1) {
-                console.log('Task not found in list');
-                return;
-            }
-
-            const taskToMove = currentList.tasks[taskIndex];
-
-            // Only move if still completed and not already moved
-            if (taskToMove.completed && !taskToMove.movedToBottom) {
-                console.log('Moving task to bottom:', taskToMove.text);
-                // Mark as moved to bottom (for blur styling)
-                taskToMove.movedToBottom = true;
-                // Set timestamp for deletion
-                taskToMove.movedToBottomTime = Date.now();
-
-                // Remove from current position
-                currentList.tasks.splice(taskIndex, 1);
-
-                // Add to end
-                currentList.tasks.push(taskToMove);
-
-                saveData();
-                renderTasks();
-                console.log('Task moved to bottom and re-rendered');
-
-                // Schedule deletion after 6 hours
-                scheduleTaskDeletion(listId, taskId);
-            } else {
-                console.log('Task not moved - completed:', taskToMove.completed, 'movedToBottom:', taskToMove.movedToBottom);
-            }
-        }, 10000); // 10 seconds = 10000 milliseconds
-    }
 }
 
-// Schedule task deletion after 6 hours
-function scheduleTaskDeletion(listId, taskId) {
-    setTimeout(() => {
-        console.log('6 hours passed, deleting task...');
-        const currentList = lists.find(l => l.id === listId);
-        if (!currentList) return;
-
-        const taskIndex = currentList.tasks.findIndex(t => t.id === taskId);
-        if (taskIndex === -1) return;
-
-        const task = currentList.tasks[taskIndex];
-
-        // Only delete if still completed and moved to bottom
-        if (task.completed && task.movedToBottom) {
-            console.log('Deleting task:', task.text);
-            currentList.tasks.splice(taskIndex, 1);
-            saveData();
-            renderTasks();
+// Move task to archive
+function moveTaskToArchive(task, listName) {
+    // Get archived tasks from localStorage
+    let archivedTasks = [];
+    const savedArchive = localStorage.getItem('rdm_archive');
+    if (savedArchive) {
+        try {
+            archivedTasks = JSON.parse(savedArchive);
+        } catch (e) {
+            console.error('Error loading archive:', e);
         }
-    }, 6 * 60 * 60 * 1000); // 6 hours = 21600000 milliseconds
+    }
+
+    // Add task to archive with metadata
+    archivedTasks.push({
+        ...task,
+        archivedDate: new Date().toISOString(),
+        originalList: listName
+    });
+
+    // Save back to localStorage
+    localStorage.setItem('rdm_archive', JSON.stringify(archivedTasks));
+    console.log('Task archived successfully');
 }
 
 function renderTasks() {
@@ -429,7 +404,7 @@ function renderTasks() {
             });
         });
     } else {
-        // Get tasks from specific list (including completed)
+        // Get all tasks from specific list (including completed)
         const list = lists.find(l => l.id === currentListId);
         if (list) {
             list.tasks.forEach(task => {
@@ -815,8 +790,327 @@ function sendToAbyss(listId, taskId) {
     renderTasks();
 }
 
+// ===== EDIT LISTS POPUP =====
+function openEditListsPopup() {
+    // Remove any existing popup
+    const existingPopup = document.querySelector('.edit-lists-popup');
+    if (existingPopup) {
+        existingPopup.remove();
+    }
+
+    // Create popup overlay
+    const popup = document.createElement('div');
+    popup.className = 'edit-lists-popup';
+
+    // Create popup content
+    const popupContent = document.createElement('div');
+    popupContent.className = 'edit-lists-content';
+
+    // Close button (X)
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'task-details-close';
+    closeBtn.textContent = '×';
+    closeBtn.onclick = () => {
+        popup.classList.remove('active');
+        setTimeout(() => popup.remove(), 300);
+    };
+
+    // Title
+    const title = document.createElement('h3');
+    title.textContent = 'Edit Lists';
+    title.style.marginBottom = '20px';
+
+    // Lists container
+    const listsContainer = document.createElement('div');
+    listsContainer.className = 'edit-lists-container';
+    listsContainer.style.marginBottom = '80px';
+
+    // Render all lists
+    lists.forEach(list => {
+        const listItem = createEditListItem(list, popup);
+        listsContainer.appendChild(listItem);
+    });
+
+    // Merge Lists Section
+    const mergeSection = document.createElement('div');
+    mergeSection.className = 'merge-lists-section';
+    mergeSection.style.marginTop = '30px';
+    mergeSection.style.paddingTop = '30px';
+    mergeSection.style.borderTop = '1px dotted #ccc';
+
+    const mergeTitle = document.createElement('h4');
+    mergeTitle.textContent = 'Merge Lists';
+    mergeTitle.style.marginBottom = '15px';
+
+    const mergeLabel1 = document.createElement('label');
+    mergeLabel1.className = 'task-detail-label';
+    mergeLabel1.textContent = 'Select First List:';
+
+    const mergeSelect1 = document.createElement('select');
+    mergeSelect1.className = 'task-detail-input';
+    mergeSelect1.id = 'merge-select-1';
+
+    const mergeLabel2 = document.createElement('label');
+    mergeLabel2.className = 'task-detail-label';
+    mergeLabel2.textContent = 'Select Second List:';
+
+    const mergeSelect2 = document.createElement('select');
+    mergeSelect2.className = 'task-detail-input';
+    mergeSelect2.id = 'merge-select-2';
+
+    // Populate select dropdowns
+    lists.forEach(list => {
+        const option1 = document.createElement('option');
+        option1.value = list.id;
+        option1.textContent = list.name;
+        mergeSelect1.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = list.id;
+        option2.textContent = list.name;
+        mergeSelect2.appendChild(option2);
+    });
+
+    const mergeBtn = document.createElement('button');
+    mergeBtn.className = 'edit-modal-save';
+    mergeBtn.textContent = 'Merge';
+    mergeBtn.style.marginTop = '15px';
+    mergeBtn.onclick = () => initiateMerge(mergeSelect1.value, mergeSelect2.value, popup);
+
+    mergeSection.appendChild(mergeTitle);
+    mergeSection.appendChild(mergeLabel1);
+    mergeSection.appendChild(mergeSelect1);
+    mergeSection.appendChild(mergeLabel2);
+    mergeSection.appendChild(mergeSelect2);
+    mergeSection.appendChild(mergeBtn);
+
+    // Save button (right arrow)
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'task-details-save';
+    saveBtn.textContent = '→';
+    saveBtn.onclick = () => {
+        saveData();
+        renderListsNav();
+        popup.classList.remove('active');
+        setTimeout(() => popup.remove(), 300);
+    };
+
+    // Assemble popup
+    popupContent.appendChild(closeBtn);
+    popupContent.appendChild(title);
+    popupContent.appendChild(listsContainer);
+    popupContent.appendChild(mergeSection);
+    popupContent.appendChild(saveBtn);
+
+    popup.appendChild(popupContent);
+    document.body.appendChild(popup);
+
+    // Trigger animation
+    setTimeout(() => popup.classList.add('active'), 10);
+}
+
+function createEditListItem(list, popup) {
+    const div = document.createElement('div');
+    div.className = 'edit-list-item';
+    div.style.marginBottom = '20px';
+    div.style.paddingBottom = '15px';
+    div.style.borderBottom = '1px dotted #ccc';
+
+    // List name (editable)
+    const nameLabel = document.createElement('label');
+    nameLabel.className = 'task-detail-label';
+    nameLabel.textContent = 'List Name:';
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'task-detail-input';
+    nameInput.type = 'text';
+    nameInput.value = list.name;
+    nameInput.onchange = () => {
+        list.name = nameInput.value.trim();
+    };
+
+    // Category
+    const categoryLabel = document.createElement('label');
+    categoryLabel.className = 'task-detail-label';
+    categoryLabel.textContent = 'Category:';
+
+    const categoryInput = document.createElement('input');
+    categoryInput.className = 'task-detail-input';
+    categoryInput.type = 'text';
+    categoryInput.value = list.category || '';
+    categoryInput.onchange = () => {
+        list.category = categoryInput.value.trim() || null;
+    };
+
+    // Associated Projects
+    const projectsLabel = document.createElement('label');
+    projectsLabel.className = 'task-detail-label';
+    projectsLabel.textContent = 'Associated Projects (comma-separated):';
+
+    const projectsInput = document.createElement('input');
+    projectsInput.className = 'task-detail-input';
+    projectsInput.type = 'text';
+    projectsInput.value = list.projects ? list.projects.join(', ') : '';
+    projectsInput.onchange = () => {
+        list.projects = projectsInput.value.split(',').map(p => p.trim()).filter(p => p);
+    };
+
+    // Delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'edit-modal-save';
+    deleteBtn.textContent = 'Delete List';
+    deleteBtn.style.backgroundColor = '#f44336';
+    deleteBtn.style.marginTop = '10px';
+    deleteBtn.onclick = () => {
+        if (confirm(`Delete list "${list.name}"? This will move it to the archive.`)) {
+            deleteListToArchive(list.id);
+            popup.classList.remove('active');
+            setTimeout(() => popup.remove(), 300);
+        }
+    };
+
+    div.appendChild(nameLabel);
+    div.appendChild(nameInput);
+    div.appendChild(categoryLabel);
+    div.appendChild(categoryInput);
+    div.appendChild(projectsLabel);
+    div.appendChild(projectsInput);
+    div.appendChild(deleteBtn);
+
+    return div;
+}
+
+function deleteListToArchive(listId) {
+    const list = lists.find(l => l.id === listId);
+    if (!list) return;
+
+    // Get archived lists
+    let archivedLists = [];
+    const savedArchivedLists = localStorage.getItem('rdm_archived_lists');
+    if (savedArchivedLists) {
+        try {
+            archivedLists = JSON.parse(savedArchivedLists);
+        } catch (e) {
+            console.error('Error loading archived lists:', e);
+        }
+    }
+
+    // Add to archived lists
+    archivedLists.push({
+        ...list,
+        archivedDate: new Date().toISOString()
+    });
+
+    localStorage.setItem('rdm_archived_lists', JSON.stringify(archivedLists));
+
+    // Remove from active lists
+    lists = lists.filter(l => l.id !== listId);
+    saveData();
+    renderListsNav();
+
+    // If this was the current list, switch to "all"
+    if (currentListId === listId) {
+        selectList('all');
+    }
+
+    renderTasks();
+}
+
+function initiateMerge(list1Id, list2Id, popup) {
+    const list1 = lists.find(l => l.id === parseInt(list1Id));
+    const list2 = lists.find(l => l.id === parseInt(list2Id));
+
+    if (!list1 || !list2) {
+        alert('Please select two valid lists');
+        return;
+    }
+
+    if (list1.id === list2.id) {
+        alert('Please select two different lists');
+        return;
+    }
+
+    // Show merge name input
+    const mergeNameDiv = document.createElement('div');
+    mergeNameDiv.style.marginTop = '20px';
+
+    const mergeNameLabel = document.createElement('label');
+    mergeNameLabel.className = 'task-detail-label';
+    mergeNameLabel.textContent = 'New List Title:';
+
+    const mergeNameInput = document.createElement('input');
+    mergeNameInput.className = 'task-detail-input';
+    mergeNameInput.type = 'text';
+    mergeNameInput.value = `${list1.name} + ${list2.name}`;
+
+    const confirmMergeBtn = document.createElement('button');
+    confirmMergeBtn.className = 'edit-modal-save';
+    confirmMergeBtn.textContent = 'Confirm Merge';
+    confirmMergeBtn.style.marginTop = '10px';
+    confirmMergeBtn.onclick = () => {
+        const newName = mergeNameInput.value.trim();
+        if (!newName) {
+            alert('Please enter a name for the merged list');
+            return;
+        }
+
+        performMerge(list1.id, list2.id, newName);
+        popup.classList.remove('active');
+        setTimeout(() => popup.remove(), 300);
+    };
+
+    mergeNameDiv.appendChild(mergeNameLabel);
+    mergeNameDiv.appendChild(mergeNameInput);
+    mergeNameDiv.appendChild(confirmMergeBtn);
+
+    // Find merge section and append
+    const mergeSection = popup.querySelector('.merge-lists-section');
+    mergeSection.appendChild(mergeNameDiv);
+}
+
+function performMerge(list1Id, list2Id, newName) {
+    const list1 = lists.find(l => l.id === list1Id);
+    const list2 = lists.find(l => l.id === list2Id);
+
+    if (!list1 || !list2) return;
+
+    // Create new merged list
+    const mergedList = {
+        id: generateId(),
+        name: newName,
+        tasks: [...list1.tasks, ...list2.tasks],
+        category: list1.category || list2.category || null,
+        projects: [...(list1.projects || []), ...(list2.projects || [])]
+    };
+
+    // Update assignedListId for all tasks
+    mergedList.tasks.forEach(task => {
+        task.assignedListId = mergedList.id;
+    });
+
+    // Remove old lists and add new one
+    lists = lists.filter(l => l.id !== list1Id && l.id !== list2Id);
+    lists.unshift(mergedList);
+
+    saveData();
+    renderListsNav();
+    selectList(mergedList.id);
+    renderTasks();
+
+    alert(`Successfully merged "${list1.name}" and "${list2.name}" into "${newName}"`);
+}
+
 // ===== EVENT LISTENERS =====
 addListBtn.addEventListener('click', addList);
+
+// Edit Lists button
+const editListsBtn = document.getElementById('edit-lists-btn');
+if (editListsBtn) {
+    editListsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openEditListsPopup();
+    });
+}
 
 // Add event listener only if element exists
 if (newTaskInput) {
